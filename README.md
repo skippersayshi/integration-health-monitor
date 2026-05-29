@@ -1,38 +1,24 @@
 # Integration Health Monitor
 
-Autonomous API health monitoring with self-healing and Ralph loop (self-improving feedback cycle).
+> Autonomous endpoint health monitor with error analysis and self-healing via Ralph loop.
 
-## What it does
+[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/new/template?template=https://github.com/skippersayshi/integration-health-monitor)
 
-- Polls HTTP endpoints on a configurable interval
-- Classifies failures: timeout, auth, rate_limit, server_error, network
-- Autonomously attempts fixes (retry, backoff, escalation)
-- Ralph loop: compares predicted vs actual fix outcomes and sharpens detection rules over time
-- SQLite-backed rule stats — gets smarter with every run
+## Features
 
-## Install
+- Monitor multiple endpoints in one run
+- Error analysis with auto-fix suggestions
+- Ralph loop: monitor → analyze → fix → retry
+- Clean status table with latency and error details
 
-```bash
-pip install httpx pydantic
-```
-
-## Run
+## Run Locally
 
 ```bash
-python health_monitor.py
+pip install -r requirements.txt
+uvicorn app:app --reload
+# Open http://localhost:8000
 ```
 
-## Components
+## Deploy
 
-| Class | Role |
-|---|---|
-| `Monitor` | Async HTTP polling daemon |
-| `ErrorAnalyzer` | Classifies error categories |
-| `AutoFixer` | Autonomous remediation |
-| `RalphLoop` | Orchestrates + learns from every cycle |
-
-## Extend
-
-- Add `escalation_hook` to `AutoFixer` for Slack/email alerts
-- Replace `httpbin.org` endpoints in `main()` with your real APIs
-- Call `monitor.start_daemon(endpoints)` for continuous monitoring
+Click the Railway button above — `railway.toml` is pre-configured.
