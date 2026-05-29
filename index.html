@@ -1,0 +1,77 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Integration Health Monitor</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif;background:#0a0a0f;color:#f5f5f7;min-height:100vh}
+nav{background:rgba(255,255,255,.06);backdrop-filter:blur(20px);border-bottom:1px solid rgba(255,255,255,.08);padding:16px 32px;display:flex;align-items:center;gap:12px}
+nav h1{font-size:18px;font-weight:600;letter-spacing:-.3px}
+.badge{background:rgba(255,159,10,.2);color:#ff9f0a;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:500}
+main{max-width:760px;margin:48px auto;padding:0 24px}
+h2{font-size:28px;font-weight:700;letter-spacing:-.5px;margin-bottom:8px}
+p.sub{color:#8e8e93;margin-bottom:32px;font-size:15px}
+.card{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:18px;padding:24px;margin-bottom:20px}
+label{display:block;font-size:13px;font-weight:500;color:#8e8e93;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px}
+.url-wrap{display:flex;gap:8px;margin-bottom:8px}
+input{flex:1;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);border-radius:10px;color:#f5f5f7;padding:10px 14px;font-size:14px;font-family:inherit;outline:none;transition:border .2s}
+input:focus{border-color:#ff9f0a}
+.btn-sm{background:rgba(255,255,255,.1);color:#f5f5f7;border:none;border-radius:8px;padding:10px 14px;cursor:pointer;font-size:13px;white-space:nowrap}
+.btn-sm:hover{background:rgba(255,255,255,.15)}
+button{background:linear-gradient(135deg,#ff9f0a,#ff6b00);color:#fff;border:none;border-radius:12px;padding:14px 28px;font-size:15px;font-weight:600;cursor:pointer;width:100%;margin-top:20px;transition:opacity .2s}
+button:hover{opacity:.85}button:disabled{opacity:.4;cursor:not-allowed}
+.result{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:18px;padding:24px;margin-top:20px;display:none}
+.result.show{display:block}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{text-align:left;color:#8e8e93;font-size:12px;font-weight:500;text-transform:uppercase;letter-spacing:.5px;padding:8px 12px;border-bottom:1px solid rgba(255,255,255,.08)}
+td{padding:10px 12px;border-bottom:1px solid rgba(255,255,255,.05)}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
+.dot.ok{background:#30d158}.dot.warn{background:#ff9f0a}.dot.err{background:#ff453a}
+.spinner{display:none;width:20px;height:20px;border:2px solid rgba(255,255,255,.2);border-top-color:#ff9f0a;border-radius:50%;animation:spin .7s linear infinite;margin:8px auto 0}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style></head><body>
+<nav><div style="width:28px;height:28px;background:linear-gradient(135deg,#ff9f0a,#ff6b00);border-radius:8px"></div><h1>Integration Health Monitor</h1><span class="badge">Ralph Loop</span></nav>
+<main>
+<h2>Health Check</h2>
+<p class="sub">Add endpoints to monitor — the Ralph loop analyzes errors and suggests auto-fixes.</p>
+<div class="card">
+  <label>Endpoints</label>
+  <div id="urlList"></div>
+  <button type="button" class="btn-sm" onclick="addUrl()" style="width:auto;margin-top:0;background:rgba(255,255,255,.08);border-radius:8px;padding:8px 14px">+ Add URL</button>
+  <button id="btn" onclick="run()">Run Health Check</button>
+  <div class="spinner" id="spin"></div>
+</div>
+<div class="result" id="res">
+  <label>Results</label>
+  <table><thead><tr><th>URL</th><th>Status</th><th>Latency</th><th>Error</th></tr></thead>
+  <tbody id="tbody"></tbody></table>
+</div>
+</main>
+<script>
+const defaults=["https://httpbin.org/status/200","https://httpbin.org/status/500"];
+function addUrl(val=''){
+  const d=document.createElement('div');d.className='url-wrap';
+  d.innerHTML=`<input type="url" value="${val}" placeholder="https://api.example.com/health"><button type="button" class="btn-sm" onclick="this.parentNode.remove()">✕</button>`;
+  document.getElementById('urlList').appendChild(d);
+}
+defaults.forEach(addUrl);
+async function run(){
+  const btn=document.getElementById('btn'),spin=document.getElementById('spin'),res=document.getElementById('res');
+  const urls=[...document.querySelectorAll('#urlList input')].map(i=>i.value).filter(Boolean);
+  if(!urls.length){alert('Add at least one URL');return}
+  btn.disabled=true;spin.style.display='block';res.classList.remove('show');
+  try{
+    const r=await fetch('/api/health',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({endpoints:urls})});
+    const d=await r.json();
+    if(d.error){alert(d.error);return}
+    const tbody=document.getElementById('tbody');tbody.innerHTML='';
+    (d.statuses||[]).forEach(s=>{
+      const ok=s.status==='healthy',warn=s.status==='degraded';
+      const cls=ok?'ok':warn?'warn':'err';
+      const tr=document.createElement('tr');
+      tr.innerHTML=`<td style="max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.url}</td><td><span class="dot ${cls}"></span>${s.status}</td><td>${s.latency_ms!=null?s.latency_ms+'ms':'—'}</td><td style="color:#ff453a;font-size:12px">${s.error||''}</td>`;
+      tbody.appendChild(tr);
+    });
+    res.classList.add('show');
+  }catch(e){alert('Error: '+e.message)}
+  finally{btn.disabled=false;spin.style.display='none'}
+}
+</script></body></html>
